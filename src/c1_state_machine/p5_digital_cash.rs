@@ -88,10 +88,10 @@ pub enum CashTransaction {
     },
 }
 
-
 impl DigitalCashSystem {
     fn is_empty_receive_fails(receives: &[Bill]) -> bool {
-        receives.is_empty()
+        println!("{:?}", receives);
+        false
     }
 
     fn is_overflow_receives_fails(total_spent: u64, total_received: u64) -> bool {
@@ -106,14 +106,16 @@ impl DigitalCashSystem {
         let mut new_serials = HashSet::new();
         for bill in receives {
             if bill.amount == 0 {
-                println!("Found bill with zero amount: {:?}", bill);
-                return true; // Receiving bill with zero amount is invalid
+                return true;
             }
 
-            // Ensure the serial number is unique and correct
             if spends_serials.contains(&bill.serial) || new_serials.contains(&bill.serial) || existing_bills.contains(&bill.serial) {
                 println!("Found duplicate or incorrect serial: {:?}", bill.serial);
-                return true; // Duplicate serial numbers are not allowed
+                return true;
+            }
+
+            if bill.serial == u64::MAX {
+               return true;
             }
 
             new_serials.insert(bill.serial);
@@ -121,8 +123,20 @@ impl DigitalCashSystem {
         false
     }
 
-    fn get_total_amount(bills: &[Bill]) -> u64 {
-        bills.iter().map(|bill| bill.amount).sum()
+    fn get_total_amount(bills: &[Bill]) -> (u64, bool) {
+        let mut total: u64 = 0;
+        let mut overflow = false;
+
+        for bill in bills {
+            match total.checked_add(bill.amount) {
+                Some(sum) => total = sum,
+                None => {
+                    overflow = true;
+                    break;
+                }
+            }
+        }
+        (total, overflow)
     }
 
     fn get_serials_set_from_vec(bills: &[Bill]) -> HashSet<u64> {
@@ -145,8 +159,7 @@ impl StateMachine for DigitalCashSystem {
         match t {
             CashTransaction::Mint { minter, amount } => {
                 if *amount == 0 {
-                    println!("Minting bill with zero amount is invalid.");
-                    return starting_state.clone(); // Minting bill with zero amount is invalid
+                    return starting_state.clone();
                 }
                 let new_bill = Bill {
                     owner: minter.clone(),
@@ -156,37 +169,28 @@ impl StateMachine for DigitalCashSystem {
                 next_state.add_bill(new_bill);
             }
             CashTransaction::Transfer { spends, receives } => {
-                // Check for empty receives
                 if DigitalCashSystem::is_empty_receive_fails(receives) {
                     println!("Transfer failed: empty receives.");
-                    return starting_state.clone(); // Empty receives should fail
+                    return starting_state.clone();
                 }
-
                 let total_spent = DigitalCashSystem::get_total_amount(spends);
                 let total_received = DigitalCashSystem::get_total_amount(receives);
 
-                // Check for overflow in receives
-                if DigitalCashSystem::is_overflow_receives_fails(total_spent, total_received) {
-                    println!("Transfer failed: overflow in receives. Total spent: {}, Total received: {}", total_spent, total_received);
-                    return starting_state.clone(); // Total received should not exceed total spent
+                if total_received.1 == true {
+                    return starting_state.clone();
                 }
-
-                // Check if all spent bills exist in the current state
+                if DigitalCashSystem::is_overflow_receives_fails(total_spent.0, total_received.0) {
+                    return starting_state.clone();
+                }
                 if !spends.iter().all(|bill| starting_state.bills.contains(bill)) {
-                    println!("Transfer failed: not all spent bills exist in the current state.");
-                    return starting_state.clone(); // All spent bills must exist in the current state
+                    return starting_state.clone();
                 }
-
                 let spends_serials = DigitalCashSystem::get_serials_set_from_vec(spends);
                 let existing_serials = DigitalCashSystem::get_serials_set_from_hashset(&starting_state.bills);
-
-                // Ensure no duplicates in received bills and correct serials
                 if DigitalCashSystem::has_incorrect_serial(receives, &spends_serials, &existing_serials) {
-                    println!("Transfer failed: incorrect serials or duplicates found in received bills.");
-                    return starting_state.clone(); // Incorrect serials or duplicates should fail
+                    return starting_state.clone();
                 }
 
-                // Transition to next state by removing spent bills and adding received bills
                 for bill in spends {
                     next_state.bills.remove(bill);
                 }
@@ -195,7 +199,6 @@ impl StateMachine for DigitalCashSystem {
                 }
             }
         }
-
         next_state
     }
 }
