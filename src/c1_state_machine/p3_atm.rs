@@ -68,18 +68,15 @@ impl StateMachine for Atm {
                         new_state.keystroke_register.clear();
                     },
                     Auth::Authenticating(_) | Auth::Authenticated => {
-                        // Do nothing, stay in the current state
                     }
                 }
             },
             Action::PressKey(key) => {
                 match starting_state.expected_pin_hash {
                     Auth::Waiting => {
-                        // Ignore key presses if no card has been swiped
                     },
                     Auth::Authenticating(expected_pin_hash) => {
                         if let Key::Enter = key {
-                            // Check if the entered PIN is correct
                             let entered_pin_hash = crate::hash(&new_state.keystroke_register);
                             if entered_pin_hash == expected_pin_hash {
                                 new_state.expected_pin_hash = Auth::Authenticated;
@@ -117,7 +114,6 @@ impl StateMachine for Atm {
                 }
             }
         }
-
         new_state
     }
 }
