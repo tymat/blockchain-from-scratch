@@ -40,7 +40,52 @@ impl StateMachine for ClothesMachine {
     type Transition = ClothesAction;
 
     fn next_state(starting_state: &ClothesState, t: &ClothesAction) -> ClothesState {
-        todo!("Exercise 3")
+        match (starting_state, t) {
+
+            // If the clothes are tattered, they remain tattered regardless of the action
+            (ClothesState::Tattered, _) => ClothesState::Tattered,
+
+            // Wearing clothes decreases their life by 1 and makes them dirty
+            (ClothesState::Clean(life), ClothesAction::Wear) |
+            (ClothesState::Dirty(life), ClothesAction::Wear) |
+            (ClothesState::Wet(life), ClothesAction::Wear) => {
+                if *life > 1 {
+                    ClothesState::Dirty(life - 1)
+                } else {
+                    ClothesState::Tattered
+                }
+            }
+
+            // Washing clothes decreases their life by 1 and makes them wet
+            (ClothesState::Clean(life), ClothesAction::Wash) |
+            (ClothesState::Dirty(life), ClothesAction::Wash) |
+            (ClothesState::Wet(life), ClothesAction::Wash) => {
+                if *life > 1 {
+                    ClothesState::Wet(life - 1)
+                } else {
+                    ClothesState::Tattered
+                }
+            }
+
+            // Drying clothes decreases their life by 1
+            // If the clothes were clean or wet to begin with they will be clean after drying
+            // If they were dirty to begin with, they will still be dirty after drying
+            (ClothesState::Clean(life), ClothesAction::Dry) |
+            (ClothesState::Wet(life), ClothesAction::Dry) => {
+                if *life > 1 {
+                    ClothesState::Clean(life - 1)
+                } else {
+                    ClothesState::Tattered
+                }
+            }
+            (ClothesState::Dirty(life), ClothesAction::Dry) => {
+                if *life > 1 {
+                    ClothesState::Dirty(life - 1)
+                } else {
+                    ClothesState::Tattered
+                }
+            }
+        }
     }
 }
 
