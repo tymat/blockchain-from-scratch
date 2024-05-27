@@ -41,14 +41,13 @@ impl StateMachine for ClothesMachine {
 
     fn next_state(starting_state: &ClothesState, t: &ClothesAction) -> ClothesState {
         match (starting_state, t) {
-
             // If the clothes are tattered, they remain tattered regardless of the action
             (ClothesState::Tattered, _) => ClothesState::Tattered,
 
             // Wearing clothes decreases their life by 1 and makes them dirty
-            (ClothesState::Clean(life), ClothesAction::Wear) |
-            (ClothesState::Dirty(life), ClothesAction::Wear) |
-            (ClothesState::Wet(life), ClothesAction::Wear) => {
+            (ClothesState::Clean(life), ClothesAction::Wear)
+            | (ClothesState::Dirty(life), ClothesAction::Wear)
+            | (ClothesState::Wet(life), ClothesAction::Wear) => {
                 if *life > 1 {
                     ClothesState::Dirty(life - 1)
                 } else {
@@ -57,9 +56,9 @@ impl StateMachine for ClothesMachine {
             }
 
             // Washing clothes decreases their life by 1 and makes them wet
-            (ClothesState::Clean(life), ClothesAction::Wash) |
-            (ClothesState::Dirty(life), ClothesAction::Wash) |
-            (ClothesState::Wet(life), ClothesAction::Wash) => {
+            (ClothesState::Clean(life), ClothesAction::Wash)
+            | (ClothesState::Dirty(life), ClothesAction::Wash)
+            | (ClothesState::Wet(life), ClothesAction::Wash) => {
                 if *life > 1 {
                     ClothesState::Wet(life - 1)
                 } else {
@@ -70,8 +69,8 @@ impl StateMachine for ClothesMachine {
             // Drying clothes decreases their life by 1
             // If the clothes were clean or wet to begin with they will be clean after drying
             // If they were dirty to begin with, they will still be dirty after drying
-            (ClothesState::Clean(life), ClothesAction::Dry) |
-            (ClothesState::Wet(life), ClothesAction::Dry) => {
+            (ClothesState::Clean(life), ClothesAction::Dry)
+            | (ClothesState::Wet(life), ClothesAction::Dry) => {
                 if *life > 1 {
                     ClothesState::Clean(life - 1)
                 } else {
