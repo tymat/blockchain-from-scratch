@@ -58,7 +58,67 @@ impl StateMachine for Atm {
     type Transition = Action;
 
     fn next_state(starting_state: &Self::State, t: &Self::Transition) -> Self::State {
-        todo!("Exercise 4")
+        let mut new_state = starting_state.clone();
+
+        match t {
+            Action::SwipeCard(pin_hash) => {
+                match starting_state.expected_pin_hash {
+                    Auth::Waiting => {
+                        new_state.expected_pin_hash = Auth::Authenticating(*pin_hash);
+                        new_state.keystroke_register.clear();
+                    },
+                    Auth::Authenticating(_) | Auth::Authenticated => {
+                        // Do nothing, stay in the current state
+                    }
+                }
+            },
+            Action::PressKey(key) => {
+                match starting_state.expected_pin_hash {
+                    Auth::Waiting => {
+                        // Ignore key presses if no card has been swiped
+                    },
+                    Auth::Authenticating(expected_pin_hash) => {
+                        if let Key::Enter = key {
+                            // Check if the entered PIN is correct
+                            let entered_pin_hash = crate::hash(&new_state.keystroke_register);
+                            if entered_pin_hash == expected_pin_hash {
+                                new_state.expected_pin_hash = Auth::Authenticated;
+                            } else {
+                                new_state.expected_pin_hash = Auth::Waiting;
+                            }
+                            new_state.keystroke_register.clear();
+                        } else {
+                            new_state.keystroke_register.push(key.clone());
+                        }
+                    },
+                    Auth::Authenticated => {
+                        if let Key::Enter = key {
+                            let amount_to_withdraw: u64 = new_state
+                                .keystroke_register
+                                .iter()
+                                .filter_map(|k| match k {
+                                    Key::One => Some(1),
+                                    Key::Two => Some(2),
+                                    Key::Three => Some(3),
+                                    Key::Four => Some(4),
+                                    _ => None,
+                                })
+                                .fold(0, |acc, digit| acc * 10 + digit);
+
+                            if amount_to_withdraw <= new_state.cash_inside {
+                                new_state.cash_inside -= amount_to_withdraw;
+                            }
+                            new_state.expected_pin_hash = Auth::Waiting;
+                            new_state.keystroke_register.clear();
+                        } else {
+                            new_state.keystroke_register.push(key.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        new_state
     }
 }
 
